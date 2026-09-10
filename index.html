@@ -229,6 +229,12 @@
 (function(){
   var DATA = JSON.parse(document.getElementById('site-data').textContent);
 
+  // Amazonアソシエイト・トラッキングID(BLACKHOLE専用、2026-09-10発行)
+  var AMAZON_TAG = 'blackhole00-22';
+  function withAffiliateTag(url){
+    if (!url) return url;
+    return url + (url.indexOf('?') === -1 ? '?' : '&') + 'tag=' + AMAZON_TAG;
+  }
   var TYPE_LABELS = { movie:'映画', anime:'アニメ', drama:'ドラマ', book:'本', game:'ゲーム', music:'音楽', magazine:'雑誌', toy:'玩具', tv:'TV番組', other:'その他' };
   var TYPE_VAR = { movie:'--red', drama:'--red', anime:'--c-anime', book:'--c-book', game:'--c-game', music:'--c-music', magazine:'--c-magazine', toy:'--c-toy', tv:'--c-neutral', other:'--c-neutral' };
 
@@ -469,7 +475,7 @@
       quotesHtml +
       (tagsHtml ? '<div class="card-tags">' + tagsHtml + '</div>' : '') +
       '<div class="card-actions">' +
-        '<a class="buy-link" href="' + esc(it.a) + '" target="_blank" rel="noopener">探す</a>' +
+        '<a class="buy-link" href="' + esc(withAffiliateTag(it.a)) + '" target="_blank" rel="noopener">探す</a>' +
         '<a class="buy-link buy-link-vm" href="' + esc(importUrl) + '" target="_blank" rel="noopener">海外盤を探す</a>' +
         '<button type="button" class="mark-bought" data-key="' + esc(key||'') + '">買った?</button>' +
       '</div>' +
