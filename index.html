@@ -229,7 +229,9 @@
 (function(){
   var DATA = JSON.parse(document.getElementById('site-data').textContent);
 
-  // Amazonアソシエイト・トラッキングID(BLACKHOLE専用、2026-09-10発行)
+  // Amazonアソシエイト・トラッキングID(BLACKHOLE専用、2026-09-10発行)。
+  // 配信者への報告・許可確認メールを送るまでは未使用のまま保留(2026-09-10)。
+  // 再開する場合は下の買うリンクをwithAffiliateTag(it.a)に戻すだけでよい。
   var AMAZON_TAG = 'blackhole00-22';
   function withAffiliateTag(url){
     if (!url) return url;
@@ -475,7 +477,7 @@
       quotesHtml +
       (tagsHtml ? '<div class="card-tags">' + tagsHtml + '</div>' : '') +
       '<div class="card-actions">' +
-        '<a class="buy-link" href="' + esc(withAffiliateTag(it.a)) + '" target="_blank" rel="noopener">探す</a>' +
+        '<a class="buy-link" href="' + esc(it.a) + '" target="_blank" rel="noopener">探す</a>' +
         '<a class="buy-link buy-link-vm" href="' + esc(importUrl) + '" target="_blank" rel="noopener">海外盤を探す</a>' +
         '<button type="button" class="mark-bought" data-key="' + esc(key||'') + '">買った?</button>' +
       '</div>' +
