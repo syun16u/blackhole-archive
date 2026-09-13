@@ -19,7 +19,16 @@
   gtag('js', new Date());
   gtag('config', 'G-KR04FJB148');
 </script>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KR04FJB148"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-KR04FJB148');
+</script>
 <title>極私的BLACKHOLE</title>
+
 
 
 
@@ -197,6 +206,8 @@
   .card-video-ref { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-bottom: 6px; }
   .card-speaker { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
   .card-context { font-size: 13px; color: var(--text); opacity: 0.88; line-height: 1.65; margin-bottom: 8px; }
+  .card-context .entity-link { color: inherit; text-decoration: underline dotted; text-underline-offset: 2px; }
+  .card-context .entity-link:hover { color: var(--red); text-decoration-style: solid; }
   .quote { font-size: 13px; margin: 6px 0; padding-left: 10px; border-left: 2px solid var(--border); line-height: 1.65; }
   .quote .ts-link {
     display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-mono); font-size: 11px;
@@ -507,9 +518,33 @@
   }
 
   // ---------------- card rendering ----------------
+  // 本文(context)中に固有名詞(entities[].mention)が出てきたら、Wikipedia検索へのリンクにする。
+  // 下のタグ「#entity名」はサイト内検索用として別途維持(こちらは変更しない)。
   function linkifyEntities(text, entities){
-    if (!entities || !entities.length) return esc(text);
-    var out = esc(text);
+    if (!entities || !entities.length || !text) return esc(text);
+    var matches = [];
+    entities.forEach(function(e){
+      var m = e.mention;
+      if (!m) return;
+      var idx = text.indexOf(m);
+      if (idx !== -1) matches.push({ start: idx, end: idx + m.length, mention: m, name: e.name || m });
+    });
+    if (!matches.length) return esc(text);
+    matches.sort(function(a, b){ return a.start - b.start || (b.end - b.start) - (a.end - a.start); });
+    var filtered = [];
+    var lastEnd = -1;
+    matches.forEach(function(m){
+      if (m.start >= lastEnd){ filtered.push(m); lastEnd = m.end; }
+    });
+    var out = '';
+    var pos = 0;
+    filtered.forEach(function(m){
+      out += esc(text.slice(pos, m.start));
+      var wikiUrl = 'https://ja.wikipedia.org/w/index.php?search=' + encodeURIComponent(m.name);
+      out += '<a class="entity-link" href="' + esc(wikiUrl) + '" target="_blank" rel="noopener">' + esc(m.mention) + '</a>';
+      pos = m.end;
+    });
+    out += esc(text.slice(pos));
     return out;
   }
 
@@ -539,7 +574,7 @@
       '<span class="card-badge">' + esc(TYPE_LABELS[it.t] || it.t) + '</span></div>' +
       (video ? '' : '<div class="card-video-ref">' + esc(video && video.title || '') + '</div>') +
       '<div class="card-speaker">' + esc(it.s||'') + '</div>' +
-      '<div class="card-context">' + esc(it.c) + '</div>' +
+      '<div class="card-context">' + linkifyEntities(it.c, it.e) + '</div>' +
       quotesHtml +
       (tagsHtml ? '<div class="card-tags">' + tagsHtml + '</div>' : '') +
       '<div class="card-actions">' +
