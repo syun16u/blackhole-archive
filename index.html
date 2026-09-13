@@ -6,6 +6,7 @@
 <title>極私的BLACKHOLE</title>
 
 
+
 <meta name="description" content="映画評論YouTubeチャンネル「BLACKHOLE」(柳下毅一郎・高橋ヨシキ・てらさわホーク)の配信248本で語られた映画・アニメ・本・ゲームなどをまとめた非公式アーカイブ。作品ごとの文脈・発言とAmazon検索リンク付き。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -563,7 +564,7 @@
     var colsHtml = HOSTS.map(function(h){
       var list = hostRankings[h].slice(0, RANK_TOP_N);
       var itemsHtml = list.map(function(e){
-        return '<li data-name="' + esc(e.name) + '"><span class="rk-name">' + esc(e.name) + '</span><span class="rk-count">' + e.count + '</span></li>';
+        return '<li data-name="' + esc(e.name) + '" data-host="' + esc(h) + '"><span class="rk-name">' + esc(e.name) + '</span><span class="rk-count">' + e.count + '</span></li>';
       }).join('');
       return '<div class="rk-col"><h3>' + esc(h) + '</h3>' +
         '<div class="rk-count-total">話者確定 ' + totalItems[h] + '件中、言及の多い固有名詞 TOP' + list.length + '</div>' +
@@ -576,10 +577,32 @@
 
     rankingPanel.querySelectorAll('.rk-list li[data-name]').forEach(function(li){
       li.addEventListener('click', function(){
-        showRanking(false);
-        searchInput.value = li.dataset.name;
-        applyFilter();
+        showEntityForHost(li.dataset.host, li.dataset.name);
       });
+    });
+  }
+
+  // ランキングの数字(entities集計)と表示件数を一致させるため、全文あいまい検索(applyFilter)ではなく
+  // 「その話者(host)確定の項目 かつ entitiesにその名前を含む」という厳密条件で絞り込む。
+  function showEntityForHost(host, name){
+    showRanking(false);
+    lastSearchMode = true;
+    searchInput.value = name;
+    headerEl.style.display = 'none';
+    var matches = [];
+    DATA.forEach(function(v, vi){
+      v.items.forEach(function(it, ii){
+        if (it.s !== host) return;
+        var names = (it.e && it.e.length) ? it.e.map(function(e){ return e.name; }) : [it.w];
+        if (names.indexOf(name) === -1) return;
+        matches.push([it, v, vi + '_' + ii]);
+      });
+    });
+    renderMatchList(matches, name);
+    updateHeatmapFilter();
+    var qLower = name.toLowerCase();
+    videoListEl.querySelectorAll('li').forEach(function(li){
+      li.classList.toggle('hidden-by-filter', li.dataset.search.indexOf(qLower) === -1);
     });
   }
 
@@ -643,6 +666,13 @@
   var searchInput = document.getElementById('search');
   var lastSearchMode = false;
 
+  function renderMatchList(matches, queryLabel){
+    cardsEl.innerHTML = matches.length
+      ? matches.map(function(pair){ return cardHtml(pair[0], pair[1], pair[2]).replace('<div class="card-video-ref"></div>', '<div class="card-video-ref">' + esc(pair[1].title) + '</div>'); }).join('')
+      : '<div id="empty">「' + esc(queryLabel) + '」に一致する作品が見つかりません</div>';
+    wireCardEvents();
+  }
+
   function applyFilter(){
     var q = searchInput.value.trim().toLowerCase();
     updateHeatmapFilter();
@@ -660,10 +690,7 @@
         });
       });
       matches = matches.filter(function(pair){ return activeTypes.size === 0 || activeTypes.has(pair[0].t); });
-      cardsEl.innerHTML = matches.length
-        ? matches.map(function(pair){ return cardHtml(pair[0], pair[1], pair[2]).replace('<div class="card-video-ref"></div>', '<div class="card-video-ref">' + esc(pair[1].title) + '</div>'); }).join('')
-        : '<div id="empty">「' + esc(searchInput.value) + '」に一致する作品が見つかりません</div>';
-      wireCardEvents();
+      renderMatchList(matches, searchInput.value);
       videoListEl.querySelectorAll('li').forEach(function(li){
         li.classList.toggle('hidden-by-filter', li.dataset.search.indexOf(q) === -1);
       });
