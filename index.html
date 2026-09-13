@@ -11,7 +11,16 @@
   gtag('js', new Date());
   gtag('config', 'G-KR04FJB148');
 </script>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KR04FJB148"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-KR04FJB148');
+</script>
 <title>極私的BLACKHOLE</title>
+
 
 
 
@@ -142,6 +151,14 @@
   #video-list li.active .vn { color: rgba(255,255,255,0.75); }
   #video-list li.hidden-by-filter { display: none; }
 
+  #sidebar-footer {
+    flex-shrink: 0; padding: 10px 14px; border-top: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 9.5px; color: var(--text-muted); line-height: 1.9;
+  }
+  #sidebar-footer a { color: var(--text-muted); text-decoration: none; }
+  #sidebar-footer a:hover { color: var(--red); }
+  #sidebar-footer .sep { margin: 0 4px; opacity: 0.5; }
+
   /* ---------- main ---------- */
   #main { flex: 1; overflow-y: auto; min-width: 0; }
   #video-header {
@@ -255,6 +272,9 @@
   <div id="type-chips"></div>
   <div id="year-jump"></div>
   <ul id="video-list"></ul>
+  <div id="sidebar-footer">
+    <a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a><span class="sep">・</span><a href="affiliate.html" target="_blank" rel="noopener">アフィリエイト表示</a><span class="sep">・</span><a href="disclaimer.html" target="_blank" rel="noopener">免責事項</a><span class="sep">・</span><a href="about.html" target="_blank" rel="noopener">運営者情報</a>
+  </div>
 </div>
 
 <div id="main">
