@@ -27,7 +27,16 @@
   gtag('js', new Date());
   gtag('config', 'G-KR04FJB148');
 </script>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KR04FJB148"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-KR04FJB148');
+</script>
 <title>極私的BLACKHOLE</title>
+
 
 
 
@@ -86,8 +95,13 @@
   #sidebar h1 {
     font-family: var(--font-display); font-weight: 900; font-size: 20px; margin: 0;
     padding: 16px 14px 4px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
   }
   #sidebar h1:hover { opacity: 0.85; }
+  #vortex-logo {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+    box-shadow: 0 0 6px 0 color-mix(in srgb, var(--red) 55%, transparent);
+  }
   #sidebar h1 .l2 { color: var(--red); }
   #sidebar-sub { padding: 0 14px 10px; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
 
@@ -269,7 +283,7 @@
 
 <div id="sidebar">
   <div id="masthead">柳下毅一郎 ● 高橋ヨシキ ● てらさわホーク</div>
-  <h1 id="site-title" title="TOPに戻る"><span class="l1">極私的</span><span class="l2">BLACKHOLE</span></h1>
+  <h1 id="site-title" title="TOPに戻る"><video id="vortex-logo" src="vortex_logo.mp4" autoplay loop muted playsinline></video><span class="l1">極私的</span><span class="l2">BLACKHOLE</span></h1>
   <div id="sidebar-sub"></div>
   <div id="heatmap-wrap">
     <div id="heatmap-scroll"><div id="heatmap-spacer"></div><div id="heatmap"></div></div>
