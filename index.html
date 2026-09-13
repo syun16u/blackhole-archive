@@ -7,6 +7,7 @@
 
 
 
+
 <meta name="description" content="映画評論YouTubeチャンネル「BLACKHOLE」(柳下毅一郎・高橋ヨシキ・てらさわホーク)の配信248本で語られた映画・アニメ・本・ゲームなどをまとめた非公式アーカイブ。作品ごとの文脈・発言とAmazon検索リンク付き。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -56,8 +57,9 @@
   }
   #sidebar h1 {
     font-family: var(--font-display); font-weight: 900; font-size: 20px; margin: 0;
-    padding: 16px 14px 4px;
+    padding: 16px 14px 4px; cursor: pointer;
   }
+  #sidebar h1:hover { opacity: 0.85; }
   #sidebar h1 .l2 { color: var(--red); }
   #sidebar-sub { padding: 0 14px 10px; font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
 
@@ -229,7 +231,7 @@
 
 <div id="sidebar">
   <div id="masthead">柳下毅一郎 ● 高橋ヨシキ ● てらさわホーク</div>
-  <h1><span class="l1">極私的</span><span class="l2">BLACKHOLE</span></h1>
+  <h1 id="site-title" title="TOPに戻る"><span class="l1">極私的</span><span class="l2">BLACKHOLE</span></h1>
   <div id="sidebar-sub"></div>
   <div id="heatmap-wrap">
     <div id="heatmap-scroll"><div id="heatmap-spacer"></div><div id="heatmap"></div></div>
@@ -713,6 +715,17 @@
     }
   }
   searchInput.addEventListener('input', applyFilter);
+
+  // ---------------- サイト名クリックでTOPに戻る ----------------
+  document.getElementById('site-title').addEventListener('click', function(){
+    if (showingRanking) showRanking(false);
+    searchInput.value = '';
+    lastSearchMode = false;
+    activeTypes.clear();
+    chipsEl.querySelectorAll('.chip.active').forEach(function(c){ c.classList.remove('active'); });
+    if (DATA.length) selectVideo(DATA.length - 1);
+    document.getElementById('sidebar').scrollTop = 0;
+  });
 
   // ---------------- init ----------------
   renderVideoList();
