@@ -3,7 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KR04FJB148"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-KR04FJB148');
+</script>
 <title>極私的BLACKHOLE</title>
+
 
 
 
@@ -238,7 +247,7 @@
     <div id="heatmap-scroll"><div id="heatmap-spacer"></div><div id="heatmap"></div></div>
     <div id="heatmap-legend">
       <span class="lg-cell unchecked"></span><span>未チェック</span>
-      <span class="lg-cell checked"></span><span>買った</span>
+      <span class="lg-cell checked"></span><span>チェック済み</span>
     </div>
   </div>
   <div id="ranking-btn-wrap"><button type="button" id="ranking-btn">🏆 話者別 言及ランキング</button></div>
@@ -516,7 +525,7 @@
       '<div class="card-actions">' +
         '<a class="buy-link" href="' + esc(it.a) + '" target="_blank" rel="noopener">探す</a>' +
         '<a class="buy-link buy-link-vm" href="' + esc(importUrl) + '" target="_blank" rel="noopener">海外盤を探す</a>' +
-        '<button type="button" class="mark-bought" data-key="' + esc(key||'') + '">買った?</button>' +
+        '<button type="button" class="mark-bought" data-key="' + esc(key||'') + '">チェック済み</button>' +
       '</div>' +
     '</div>';
   }
@@ -654,7 +663,7 @@
       function refresh(){
         var bought = checkedSet.has(key);
         btn.classList.toggle('active', bought);
-        btn.textContent = bought ? '✓ 買った' : '買った?';
+        btn.textContent = bought ? '✓ チェック済み' : 'チェック済み';
 
       }
       refresh();
