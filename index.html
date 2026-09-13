@@ -8,6 +8,7 @@
 
 
 
+
 <meta name="description" content="映画評論YouTubeチャンネル「BLACKHOLE」(柳下毅一郎・高橋ヨシキ・てらさわホーク)の配信248本で語られた映画・アニメ・本・ゲームなどをまとめた非公式アーカイブ。作品ごとの文脈・発言とAmazon検索リンク付き。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -696,6 +697,24 @@
       videoListEl.querySelectorAll('li').forEach(function(li){
         li.classList.toggle('hidden-by-filter', li.dataset.search.indexOf(q) === -1);
       });
+      return;
+    }
+
+    if (activeTypes.size > 0){
+      // 検索語なし・タイプチップのみ選択中: 全動画横断でそのタイプだけ表示する
+      // (「今表示中の1本だけを絞り込む」だと該当ゼロのとき空になってしまうため、検索モードと同じ全動画横断に統一)
+      if (showingRanking) showRanking(false);
+      lastSearchMode = true;
+      headerEl.style.display = 'none';
+      var typeMatches = [];
+      DATA.forEach(function(v, vi){
+        v.items.forEach(function(it, ii){
+          if (activeTypes.has(it.t)) typeMatches.push([it, v, vi + '_' + ii]);
+        });
+      });
+      var typeLabel = Array.from(activeTypes).map(function(t){ return TYPE_LABELS[t] || t; }).join('/');
+      renderMatchList(typeMatches, typeLabel);
+      videoListEl.querySelectorAll('li').forEach(function(li){ li.classList.remove('hidden-by-filter'); });
       return;
     }
 
