@@ -4,10 +4,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="映画評論YouTubeチャンネル「BLACKHOLE」(柳下毅一郎・高橋ヨシキ・てらさわホーク)の配信248本で語られた映画・アニメ・本・ゲームなどをまとめた非公式アーカイブ。作品ごとの文脈・発言とAmazon検索リンク付き。">
 <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-KR04FJB148"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
+  // Consent Mode: analytics_storageはデフォルト拒否、Cookieバナーで同意を得てから許可に切り替える(2026-09-20追加)。
+  gtag('consent', 'default', { 'analytics_storage': 'denied' });
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-KR04FJB148"></script>
+<script>
   gtag('js', new Date());
   gtag('config', 'G-KR04FJB148');
 </script>
@@ -797,5 +801,40 @@
 })();
 </script>
 
+
+<div id="cookie-consent-banner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#17140f;border-top:2px solid rgba(255,246,230,0.14);color:#f3ecdf;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans JP',sans-serif;padding:14px 16px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:center;">
+  <span style="font-size:12.5px;line-height:1.6;max-width:560px;">当サイトはアクセス解析のためCookie(Googleアナリティクス)を使用します。詳細は<a href="./privacy.html" style="color:#e2241f;">プライバシーポリシー</a>をご覧ください。</span>
+  <span style="display:flex;gap:8px;flex-shrink:0;">
+    <button type="button" id="cookie-consent-accept" style="font-family:inherit;font-size:12px;padding:6px 14px;border-radius:3px;border:1px solid #e2241f;background:#e2241f;color:#fff;cursor:pointer;">同意する</button>
+    <button type="button" id="cookie-consent-decline" style="font-family:inherit;font-size:12px;padding:6px 14px;border-radius:3px;border:1px solid rgba(255,246,230,0.14);background:transparent;color:#a8988a;cursor:pointer;">拒否する</button>
+  </span>
+</div>
+<script>
+(function(){
+  try {
+    var KEY = 'bh_cookie_consent';
+    var saved = localStorage.getItem(KEY);
+    if (saved === 'granted') {
+      gtag('consent', 'update', { 'analytics_storage': 'granted' });
+      return;
+    }
+    if (saved === 'denied') {
+      return; // デフォルトのdeniedのまま、バナーは出さない
+    }
+    var banner = document.getElementById('cookie-consent-banner');
+    if (!banner) return;
+    banner.style.display = 'flex';
+    document.getElementById('cookie-consent-accept').addEventListener('click', function(){
+      localStorage.setItem(KEY, 'granted');
+      gtag('consent', 'update', { 'analytics_storage': 'granted' });
+      banner.style.display = 'none';
+    });
+    document.getElementById('cookie-consent-decline').addEventListener('click', function(){
+      localStorage.setItem(KEY, 'denied');
+      banner.style.display = 'none';
+    });
+  } catch (e) { /* localStorage無効環境ではバナーなしでdenied据え置き */ }
+})();
+</script>
 </body>
 </html>
