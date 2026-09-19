@@ -802,7 +802,7 @@
 </script>
 
 
-<div id="cookie-consent-banner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#17140f;border-top:2px solid rgba(255,246,230,0.14);color:#f3ecdf;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans JP',sans-serif;padding:14px 16px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:center;">
+<div id="cookie-consent-banner" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#17140f;border-top:2px solid rgba(255,246,230,0.14);color:#f3ecdf;font-family:'Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans JP',sans-serif;padding:14px 16px;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:center;">
   <span style="font-size:12.5px;line-height:1.6;max-width:560px;">当サイトはアクセス解析のためCookie(Googleアナリティクス)を使用します。詳細は<a href="./privacy.html" style="color:#e2241f;">プライバシーポリシー</a>をご覧ください。</span>
   <span style="display:flex;gap:8px;flex-shrink:0;">
     <button type="button" id="cookie-consent-accept" style="font-family:inherit;font-size:12px;padding:6px 14px;border-radius:3px;border:1px solid #e2241f;background:#e2241f;color:#fff;cursor:pointer;">同意する</button>
@@ -813,6 +813,7 @@
 (function(){
   try {
     var KEY = 'bh_cookie_consent';
+    var banner = document.getElementById('cookie-consent-banner');
     var saved = localStorage.getItem(KEY);
     if (saved === 'granted') {
       gtag('consent', 'update', { 'analytics_storage': 'granted' });
@@ -821,7 +822,6 @@
     if (saved === 'denied') {
       return; // デフォルトのdeniedのまま、バナーは出さない
     }
-    var banner = document.getElementById('cookie-consent-banner');
     if (!banner) return;
     banner.style.display = 'flex';
     document.getElementById('cookie-consent-accept').addEventListener('click', function(){
