@@ -305,6 +305,11 @@
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
     });
   }
+  // データ由来のURLをhrefに使う前にスキームを検証する(javascript:等の混入対策、2026-09-20追加)。
+  function safeHref(url){
+    if (!url) return '';
+    return /^https?:\/\//i.test(url) ? url : '';
+  }
   function fmtTime(sec){
     sec = Math.floor(sec);
     var h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
@@ -333,7 +338,7 @@
   var heatmapEl = document.getElementById('heatmap');
   var allItems = [];
   DATA.forEach(function(v, vi){
-    v.items.forEach(function(it, ii){ allItems.push({ vi: vi, ii: ii, it: it, key: vi + '_' + ii }); });
+    v.items.forEach(function(it, ii){ allItems.push({ vi: vi, ii: ii, it: it, key: v.id + '::' + it.w }); });
   });
 
   var CHECKED_STORAGE_KEY = 'blackhole_checked_items_v1';
@@ -421,7 +426,7 @@
   // 検索/タイプフィルタと連動してヒートマップを光らせる(該当作品=光る、非該当=沈む)
   function itemMatchesQuery(it, q){
     if (!q) return true;
-    var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.sum||'');}).join(' ')).toLowerCase();
+    var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.sum||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase();
     return hay.indexOf(q) !== -1;
   }
   function updateHeatmapFilter(){ renderHeatmapWindow(); }
@@ -551,17 +556,17 @@
     var importUrl = 'https://www.google.com/search?q=' + encodeURIComponent(importTitle + ' import');
 
     return '<div class="card" style="--card-c: var(' + cvar + ')" data-search="' +
-        esc((it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(q){return q.t+' '+(q.sum||'');}).join(' ')).toLowerCase()) +
+        esc((it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(q){return q.t+' '+(q.sum||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase()) +
         '" data-type="' + esc(it.t) + '">' +
       '<div class="card-head"><span class="card-work">' + esc(it.w) + '</span>' +
       '<span class="card-badge">' + esc(TYPE_LABELS[it.t] || it.t) + '</span></div>' +
-      (video ? '' : '<div class="card-video-ref">' + esc(video && video.title || '') + '</div>') +
+      '<div class="card-video-ref"></div>' +
       '<div class="card-speaker">' + esc(it.s||'') + '</div>' +
       '<div class="card-context">' + linkifyEntities(it.c, it.e) + '</div>' +
       quotesHtml +
       (tagsHtml ? '<div class="card-tags">' + tagsHtml + '</div>' : '') +
       '<div class="card-actions">' +
-        '<a class="buy-link" href="' + esc(it.a) + '" target="_blank" rel="noopener">探す</a>' +
+        (safeHref(it.a) ? '<a class="buy-link" href="' + esc(safeHref(it.a)) + '" target="_blank" rel="noopener">探す</a>' : '') +
         '<a class="buy-link buy-link-vm" href="' + esc(importUrl) + '" target="_blank" rel="noopener">海外盤を探す</a>' +
         '<button type="button" class="mark-bought" data-key="' + esc(key||'') + '">チェック済み</button>' +
       '</div>' +
@@ -645,7 +650,7 @@
         if (it.s !== host) return;
         var names = (it.e && it.e.length) ? it.e.map(function(e){ return e.name; }) : [it.w];
         if (names.indexOf(name) === -1) return;
-        matches.push([it, v, vi + '_' + ii]);
+        matches.push([it, v, v.id + '::' + it.w]);
       });
     });
     renderMatchList(matches, name);
@@ -682,7 +687,7 @@
     document.getElementById('vh-date').textContent = v.date;
     document.getElementById('vh-title').textContent = v.title;
     document.getElementById('vh-link').href = v.url;
-    cardsEl.innerHTML = v.items.map(function(it, ii){ return cardHtml(it, v, vi + '_' + ii); }).join('');
+    cardsEl.innerHTML = v.items.map(function(it, ii){ return cardHtml(it, v, v.id + '::' + it.w); }).join('');
     renderVideoList();
     applyFilter();
     document.getElementById('main').scrollTop = 0;
@@ -735,8 +740,8 @@
       var matches = [];
       DATA.forEach(function(v, vi){
         v.items.forEach(function(it, ii){
-          var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.sum||'');}).join(' ')).toLowerCase();
-          if (hay.indexOf(q) !== -1) matches.push([it, v, vi + '_' + ii]);
+          var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.sum||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase();
+          if (hay.indexOf(q) !== -1) matches.push([it, v, v.id + '::' + it.w]);
         });
       });
       matches = matches.filter(function(pair){ return activeTypes.size === 0 || activeTypes.has(pair[0].t); });
@@ -756,7 +761,7 @@
       var typeMatches = [];
       DATA.forEach(function(v, vi){
         v.items.forEach(function(it, ii){
-          if (activeTypes.has(it.t)) typeMatches.push([it, v, vi + '_' + ii]);
+          if (activeTypes.has(it.t)) typeMatches.push([it, v, v.id + '::' + it.w]);
         });
       });
       var typeLabel = Array.from(activeTypes).map(function(t){ return TYPE_LABELS[t] || t; }).join('/');
