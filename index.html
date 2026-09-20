@@ -366,29 +366,9 @@
   function playInMiniPlayer(videoId, startSec){
     var embedUrl = buildEmbedUrl(videoId, startSec);
     var watchUrl = buildWatchUrl(videoId, startSec);
-    if (window.documentPictureInPicture && window.documentPictureInPicture.requestWindow){
-      window.documentPictureInPicture.requestWindow({ width: 360, height: 224 }).then(function(pipWindow){
-        pipWindow.document.body.style.margin = '0';
-        pipWindow.document.body.style.background = '#000';
-        var iframe = pipWindow.document.createElement('iframe');
-        iframe.src = embedUrl;
-        iframe.style.cssText = 'width:100%;height:180px;border:0;display:block;';
-        iframe.allow = 'autoplay; encrypted-media';
-        var openLink = pipWindow.document.createElement('a');
-        openLink.href = watchUrl;
-        openLink.target = '_blank';
-        openLink.rel = 'noopener';
-        openLink.textContent = '再生できない場合はYouTubeで開く ▶';
-        openLink.style.cssText = 'display:block;font-family:ui-monospace,monospace;font-size:10.5px;' +
-          'color:#a8988a;background:#17140f;padding:4px 8px;text-decoration:none;';
-        pipWindow.document.body.appendChild(iframe);
-        pipWindow.document.body.appendChild(openLink);
-      }).catch(function(){
-        // ユーザーがPiPを許可しなかった場合等は画面内フローティング再生にフォールバック
-        showFloatingMiniPlayer(embedUrl, watchUrl);
-      });
-      return;
-    }
+    // 2026-09-20: Document Picture-in-Picture(別ウィンドウ化)経由だとYouTube埋め込みが
+    // 年齢制限の有無に関わらず再生できない(エラー153)ケースが実機で確認されたため撤回。
+    // 常に画面内フローティング再生(通常のiframe埋め込みと同じ仕組み)に統一する。
     showFloatingMiniPlayer(embedUrl, watchUrl);
   }
 
