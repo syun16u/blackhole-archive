@@ -643,23 +643,45 @@
   var headerEl = document.getElementById('video-header');
 
   // ---------------- host ranking(話者別・言及固有名詞ランキング) ----------------
-  // 話者(it.s)が3人のうち1人に確定している項目のみを対象に、entities(固有名詞)を集計する。
-  // 「複数」「不明」やA+B等の組み合わせ表記は誰の発言か一意に決められないため対象外。
+  // 話者(it.s)が「3人のうち1人」または「3人のうち複数名の確定した組み合わせ(例: 高橋ヨシキ+てらさわホーク)」の
+  // 項目を対象に、entities(固有名詞)を集計する。組み合わせの場合は該当する全員にカウントする(2026-09-20修正)。
+  // 「複数」「不明」等、誰が含まれるか一意に決められない表記のみ対象外。
   var HOSTS = ['柳下毅一郎', '高橋ヨシキ', 'てらさわホーク'];
   var RANK_TOP_N = 25;
+
+  // it.sを分割して、全員が既知の3人のいずれかに一致する場合だけそのリストを返す(「複数」「不明」等はnull)。
+  function parseKnownHosts(s){
+    if (!s) return null;
+    var parts = s.split(/[+・、,]/).map(function(p){ return p.trim(); }).filter(Boolean);
+    if (!parts.length) return null;
+    for (var i = 0; i < parts.length; i++){
+      if (HOSTS.indexOf(parts[i]) === -1) return null;
+    }
+    // 重複除去
+    var seen = {}, out = [];
+    parts.forEach(function(p){ if (!seen[p]){ seen[p] = true; out.push(p); } });
+    return out;
+  }
 
   function buildHostRankings(){
     var counters = {};
     HOSTS.forEach(function(h){ counters[h] = {}; });
     DATA.forEach(function(v){
       v.items.forEach(function(it){
-        if (HOSTS.indexOf(it.s) === -1) return;
+        var speakers = parseKnownHosts(it.s);
+        if (!speakers) return;
         var names = (it.e && it.e.length) ? it.e.map(function(e){ return e.name; }) : [it.w];
-        var seen = {};
+        var seenName = {};
+        var uniqueNames = [];
         names.forEach(function(name){
-          if (!name || seen[name]) return;
-          seen[name] = true;
-          counters[it.s][name] = (counters[it.s][name] || 0) + 1;
+          if (!name || seenName[name]) return;
+          seenName[name] = true;
+          uniqueNames.push(name);
+        });
+        speakers.forEach(function(host){
+          uniqueNames.forEach(function(name){
+            counters[host][name] = (counters[host][name] || 0) + 1;
+          });
         });
       });
     });
@@ -713,7 +735,8 @@
     var matches = [];
     DATA.forEach(function(v, vi){
       v.items.forEach(function(it, ii){
-        if (it.s !== host) return;
+        var speakers = parseKnownHosts(it.s);
+        if (!speakers || speakers.indexOf(host) === -1) return;
         var names = (it.e && it.e.length) ? it.e.map(function(e){ return e.name; }) : [it.w];
         if (names.indexOf(name) === -1) return;
         matches.push([it, v, v.id + '::' + it.w]);
