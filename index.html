@@ -321,49 +321,75 @@
   function closeMiniPlayer(){
     if (miniPlayerBox){ miniPlayerBox.remove(); miniPlayerBox = null; }
   }
-  function showFloatingMiniPlayer(embedUrl){
+  // 年齢制限動画等、YouTube側が埋め込み再生自体を許可しないケースがある(エラー153)。
+  // 埋め込み失敗をJS側で検知する手段が無い(クロスオリジンiframeのため)ので、
+  // 常に「YouTubeで開く」への逃げ道を用意しておく。
+  function buildWatchUrl(videoId, startSec){
+    return 'https://www.youtube.com/watch?v=' + encodeURIComponent(videoId) + '&t=' + encodeURIComponent(startSec) + 's';
+  }
+  function showFloatingMiniPlayer(embedUrl, watchUrl){
     closeMiniPlayer();
     var box = document.createElement('div');
     box.id = 'mini-player-box';
-    box.style.cssText = 'position:fixed;right:16px;bottom:16px;width:320px;height:180px;' +
+    box.style.cssText = 'position:fixed;right:16px;bottom:16px;width:320px;' +
       'background:#000;border:2px solid var(--border);border-radius:6px;overflow:hidden;' +
       'z-index:10000;box-shadow:0 8px 24px rgba(0,0,0,0.5);';
     var closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.setAttribute('aria-label', '閉じる');
     closeBtn.textContent = '×';
-    closeBtn.style.cssText = 'position:absolute;top:4px;right:4px;z-index:1;width:22px;height:22px;' +
+    closeBtn.style.cssText = 'position:absolute;top:4px;right:4px;z-index:2;width:22px;height:22px;' +
       'border:none;border-radius:3px;background:rgba(0,0,0,0.65);color:#fff;cursor:pointer;' +
       'font-size:14px;line-height:1;';
     closeBtn.addEventListener('click', closeMiniPlayer);
+    var openLink = document.createElement('a');
+    openLink.href = watchUrl;
+    openLink.target = '_blank';
+    openLink.rel = 'noopener';
+    openLink.textContent = '再生できない場合はYouTubeで開く ▶';
+    openLink.style.cssText = 'display:block;font-family:ui-monospace,monospace;font-size:10.5px;' +
+      'color:#a8988a;background:#17140f;padding:4px 8px;text-decoration:none;';
+    var frameWrap = document.createElement('div');
+    frameWrap.style.cssText = 'width:100%;height:180px;';
     var iframe = document.createElement('iframe');
     iframe.src = embedUrl;
     iframe.style.cssText = 'width:100%;height:100%;border:0;display:block;';
     iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
     iframe.allowFullscreen = true;
+    frameWrap.appendChild(iframe);
     box.appendChild(closeBtn);
-    box.appendChild(iframe);
+    box.appendChild(frameWrap);
+    box.appendChild(openLink);
     document.body.appendChild(box);
     miniPlayerBox = box;
   }
   function playInMiniPlayer(videoId, startSec){
     var embedUrl = buildEmbedUrl(videoId, startSec);
+    var watchUrl = buildWatchUrl(videoId, startSec);
     if (window.documentPictureInPicture && window.documentPictureInPicture.requestWindow){
-      window.documentPictureInPicture.requestWindow({ width: 360, height: 202 }).then(function(pipWindow){
+      window.documentPictureInPicture.requestWindow({ width: 360, height: 224 }).then(function(pipWindow){
         pipWindow.document.body.style.margin = '0';
         pipWindow.document.body.style.background = '#000';
         var iframe = pipWindow.document.createElement('iframe');
         iframe.src = embedUrl;
-        iframe.style.cssText = 'width:100%;height:100%;border:0;display:block;';
+        iframe.style.cssText = 'width:100%;height:180px;border:0;display:block;';
         iframe.allow = 'autoplay; encrypted-media';
+        var openLink = pipWindow.document.createElement('a');
+        openLink.href = watchUrl;
+        openLink.target = '_blank';
+        openLink.rel = 'noopener';
+        openLink.textContent = '再生できない場合はYouTubeで開く ▶';
+        openLink.style.cssText = 'display:block;font-family:ui-monospace,monospace;font-size:10.5px;' +
+          'color:#a8988a;background:#17140f;padding:4px 8px;text-decoration:none;';
         pipWindow.document.body.appendChild(iframe);
+        pipWindow.document.body.appendChild(openLink);
       }).catch(function(){
         // ユーザーがPiPを許可しなかった場合等は画面内フローティング再生にフォールバック
-        showFloatingMiniPlayer(embedUrl);
+        showFloatingMiniPlayer(embedUrl, watchUrl);
       });
       return;
     }
-    showFloatingMiniPlayer(embedUrl);
+    showFloatingMiniPlayer(embedUrl, watchUrl);
   }
 
   function fmtTime(sec){
