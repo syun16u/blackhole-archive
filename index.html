@@ -310,6 +310,62 @@
     if (!url) return '';
     return /^https?:\/\//i.test(url) ? url : '';
   }
+
+  // ---------------- タイムスタンプ再生(Picture-in-Picture、対応ブラウザのみ / それ以外は画面内フローティング再生) ----------------
+  // 2026-09-20追加: タイムスタンプクリックで別タブに飛ばさず、サイト内に留まったまま再生できるようにする。
+  var miniPlayerBox = null;
+  function buildEmbedUrl(videoId, startSec){
+    return 'https://www.youtube.com/embed/' + encodeURIComponent(videoId) +
+      '?start=' + encodeURIComponent(startSec) + '&autoplay=1&rel=0';
+  }
+  function closeMiniPlayer(){
+    if (miniPlayerBox){ miniPlayerBox.remove(); miniPlayerBox = null; }
+  }
+  function showFloatingMiniPlayer(embedUrl){
+    closeMiniPlayer();
+    var box = document.createElement('div');
+    box.id = 'mini-player-box';
+    box.style.cssText = 'position:fixed;right:16px;bottom:16px;width:320px;height:180px;' +
+      'background:#000;border:2px solid var(--border);border-radius:6px;overflow:hidden;' +
+      'z-index:10000;box-shadow:0 8px 24px rgba(0,0,0,0.5);';
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.setAttribute('aria-label', '閉じる');
+    closeBtn.textContent = '×';
+    closeBtn.style.cssText = 'position:absolute;top:4px;right:4px;z-index:1;width:22px;height:22px;' +
+      'border:none;border-radius:3px;background:rgba(0,0,0,0.65);color:#fff;cursor:pointer;' +
+      'font-size:14px;line-height:1;';
+    closeBtn.addEventListener('click', closeMiniPlayer);
+    var iframe = document.createElement('iframe');
+    iframe.src = embedUrl;
+    iframe.style.cssText = 'width:100%;height:100%;border:0;display:block;';
+    iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+    iframe.allowFullscreen = true;
+    box.appendChild(closeBtn);
+    box.appendChild(iframe);
+    document.body.appendChild(box);
+    miniPlayerBox = box;
+  }
+  function playInMiniPlayer(videoId, startSec){
+    var embedUrl = buildEmbedUrl(videoId, startSec);
+    if (window.documentPictureInPicture && window.documentPictureInPicture.requestWindow){
+      window.documentPictureInPicture.requestWindow({ width: 360, height: 202 }).then(function(pipWindow){
+        pipWindow.document.body.style.margin = '0';
+        pipWindow.document.body.style.background = '#000';
+        var iframe = pipWindow.document.createElement('iframe');
+        iframe.src = embedUrl;
+        iframe.style.cssText = 'width:100%;height:100%;border:0;display:block;';
+        iframe.allow = 'autoplay; encrypted-media';
+        pipWindow.document.body.appendChild(iframe);
+      }).catch(function(){
+        // ユーザーがPiPを許可しなかった場合等は画面内フローティング再生にフォールバック
+        showFloatingMiniPlayer(embedUrl);
+      });
+      return;
+    }
+    showFloatingMiniPlayer(embedUrl);
+  }
+
   function fmtTime(sec){
     sec = Math.floor(sec);
     var h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
@@ -542,7 +598,7 @@
       var tsChip = '';
       if (q.ts !== null && q.ts !== undefined){
         var tsUrl = video.url + '&t=' + Math.floor(q.ts) + 's';
-        tsChip = '<a class="ts-link" href="' + esc(tsUrl) + '" target="_blank" rel="noopener">▶ ' + fmtTime(q.ts) + '</a>';
+        tsChip = '<a class="ts-link" href="' + esc(tsUrl) + '" target="_blank" rel="noopener" data-vid="' + esc(video.id) + '" data-start="' + Math.floor(q.ts) + '">▶ ' + fmtTime(q.ts) + '</a>';
       }
       return '<div class="quote"><div>' + tsChip + esc(q.t) + '</div>' +
         '<div class="qmeta">' + esc(q.s||'') + (q.sum ? ' — ' + esc(q.sum) : '') + '</div></div>';
@@ -695,6 +751,17 @@
   }
 
   function wireCardEvents(){
+    cardsEl.querySelectorAll('.ts-link').forEach(function(tsEl){
+      tsEl.addEventListener('click', function(ev){
+        // 修飾キー付きクリック(新規タブで開く等)や右クリック相当は従来通りYouTubeへ
+        if (ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
+        var vid = tsEl.dataset.vid;
+        var start = tsEl.dataset.start;
+        if (!vid) return; // 動画IDが取れない場合は通常のリンク動作にフォールバック
+        ev.preventDefault();
+        playInMiniPlayer(vid, start);
+      });
+    });
     cardsEl.querySelectorAll('.tag').forEach(function(tagEl){
       tagEl.addEventListener('click', function(){
         document.getElementById('search').value = tagEl.dataset.tagname;
