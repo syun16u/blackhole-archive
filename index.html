@@ -331,9 +331,13 @@
     closeMiniPlayer();
     var box = document.createElement('div');
     box.id = 'mini-player-box';
-    box.style.cssText = 'position:fixed;right:16px;bottom:16px;width:320px;' +
-      'background:#000;border:2px solid var(--border);border-radius:6px;overflow:hidden;' +
-      'z-index:10000;box-shadow:0 8px 24px rgba(0,0,0,0.5);';
+    // resize:both で右下ハンドルからドラッグしてサイズ調整できるようにする(2026-09-20追加)。
+    // overflowはautoにしておく必要がある(hiddenだとresizeハンドルが出ないブラウザがある)。
+    box.style.cssText = 'position:fixed;right:16px;bottom:16px;width:320px;height:212px;' +
+      'min-width:200px;min-height:130px;max-width:90vw;max-height:80vh;' +
+      'background:#000;border:2px solid var(--border);border-radius:6px;' +
+      'overflow:auto;resize:both;z-index:10000;box-shadow:0 8px 24px rgba(0,0,0,0.5);' +
+      'display:flex;flex-direction:column;';
     var closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.setAttribute('aria-label', '閉じる');
@@ -347,10 +351,10 @@
     openLink.target = '_blank';
     openLink.rel = 'noopener';
     openLink.textContent = '再生できない場合はYouTubeで開く ▶';
-    openLink.style.cssText = 'display:block;font-family:ui-monospace,monospace;font-size:10.5px;' +
+    openLink.style.cssText = 'display:block;flex-shrink:0;font-family:ui-monospace,monospace;font-size:10.5px;' +
       'color:#a8988a;background:#17140f;padding:4px 8px;text-decoration:none;';
     var frameWrap = document.createElement('div');
-    frameWrap.style.cssText = 'width:100%;height:180px;';
+    frameWrap.style.cssText = 'width:100%;flex:1;min-height:0;';
     var iframe = document.createElement('iframe');
     iframe.src = embedUrl;
     iframe.style.cssText = 'width:100%;height:100%;border:0;display:block;';
