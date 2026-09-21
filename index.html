@@ -733,16 +733,24 @@
   var RANK_TOP_N = 25;
 
   // it.sを分割して、全員が既知の3人のいずれかに一致する場合だけそのリストを返す(「複数」「不明」等はnull)。
+  // 実データに稀に出てくる略称表記(「柳下」3件・「高橋」1件、いずれも他の2人と
+  // 混同しようがない一意な省略形)。ゲスト「高橋ターヤン」等は文字列全体が異なるため
+  // このトークン完全一致では誤って巻き込まない(2026-09-22修正、以前は黙って除外されランキングが過少計上されていた)。
+  var HOST_ABBREV = { '柳下': '柳下毅一郎', '高橋': '高橋ヨシキ' };
   function parseKnownHosts(s){
     if (!s) return null;
     var parts = s.split(/[+・、,\/]/).map(function(p){ return p.trim(); }).filter(Boolean);
     if (!parts.length) return null;
+    var resolved = [];
     for (var i = 0; i < parts.length; i++){
-      if (HOSTS.indexOf(parts[i]) === -1) return null;
+      var p = parts[i];
+      if (HOSTS.indexOf(p) !== -1) resolved.push(p);
+      else if (HOST_ABBREV[p]) resolved.push(HOST_ABBREV[p]);
+      else return null;
     }
     // 重複除去
     var seen = {}, out = [];
-    parts.forEach(function(p){ if (!seen[p]){ seen[p] = true; out.push(p); } });
+    resolved.forEach(function(p){ if (!seen[p]){ seen[p] = true; out.push(p); } });
     return out;
   }
 
@@ -819,7 +827,7 @@
   // ランキングの数字(entities集計)と表示件数を一致させるため、全文あいまい検索(applyFilter)ではなく
   // 「その話者(host)確定の項目 かつ entitiesにその名前を含む」という厳密条件で絞り込む。
   function showEntityForHost(host, name){
-    showRanking(false);
+    showRanking(false, true);
     lastSearchMode = true;
     activeHostFilter = { host: host, name: name };
     searchInput.value = name;
@@ -852,7 +860,12 @@
   // (フィルタが無かった通常ケースでは従来通り高速なdisplay切り替えのみ、スクロール位置維持)。
   // 2026-09-22修正。
   var rankingClearedFilter = false;
-  function showRanking(on){
+  // suppressRebuild: selectVideo()やshowEntityForHost()が「ランキングを閉じてから
+  // 自分で別の内容を作り直す」呼び出し元のとき用。これらは呼び出し直後に必ず自前で
+  // カード一覧を再構築するので、ここでの再構築(selectVideo(currentVideoIdx))は不要な
+  // だけでなく、selectVideo()内からの呼び出しだとcurrentVideoIdxがまだ更新される前の
+  // 古い動画番号を使って無駄なフル再描画が一度走ってしまう(2026-09-22修正)。
+  function showRanking(on, suppressRebuild){
     showingRanking = on;
     rankingBtn.classList.toggle('active', on);
     rankingPanel.classList.toggle('show', on);
@@ -868,6 +881,8 @@
       }
       headerEl.style.display = 'none';
       renderRankingPanel();
+    } else if (suppressRebuild){
+      rankingClearedFilter = false;
     } else if (rankingClearedFilter && currentVideoIdx >= 0){
       rankingClearedFilter = false;
       selectVideo(currentVideoIdx);
@@ -878,7 +893,7 @@
   rankingBtn.addEventListener('click', function(){ showRanking(!showingRanking); });
 
   function selectVideo(vi){
-    if (showingRanking) showRanking(false);
+    if (showingRanking) showRanking(false, true);
     currentVideoIdx = vi;
     // ここで検索状態を明示的に閉じておかないと、下のapplyFilter()が
     // 「検索モードから抜けて元の動画に戻る」分岐(lastSearchMode)に入って
