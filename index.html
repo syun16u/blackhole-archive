@@ -473,11 +473,17 @@
     selectVideo(parseInt(cell.dataset.vi, 10));
   });
 
+  // keyは作品名を含む(vid::作品名)ため、"等のCSSセレクタで問題になる文字を含みうる。
+  // CSS.escape()で安全にエスケープしてから属性セレクタに埋め込む(2026-09-21修正)。
+  function findHeatmapCell(key){
+    return heatmapEl.querySelector('.hm-cell[data-key="' + CSS.escape(key) + '"]');
+  }
+
   function markChecked(key){
     if (!key || checkedSet.has(key)) return;
     checkedSet.add(key);
     try { localStorage.setItem(CHECKED_STORAGE_KEY, JSON.stringify(Array.from(checkedSet))); } catch (e) {}
-    var cell = heatmapEl.querySelector('.hm-cell[data-key="' + key + '"]');
+    var cell = findHeatmapCell(key);
     if (cell){ cell.classList.add('checked'); cell.style.animationDelay = ''; }
   }
 
@@ -485,14 +491,14 @@
     if (!key || !checkedSet.has(key)) return;
     checkedSet.delete(key);
     try { localStorage.setItem(CHECKED_STORAGE_KEY, JSON.stringify(Array.from(checkedSet))); } catch (e) {}
-    var cell = heatmapEl.querySelector('.hm-cell[data-key="' + key + '"]');
+    var cell = findHeatmapCell(key);
     if (cell){ cell.classList.remove('checked'); cell.style.animationDelay = '0s'; }
   }
 
   // 検索/タイプフィルタと連動してヒートマップを光らせる(該当作品=光る、非該当=沈む)
   function itemMatchesQuery(it, q){
     if (!q) return true;
-    var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.sum||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase();
+    var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.su||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase();
     return hay.indexOf(q) !== -1;
   }
   function updateHeatmapFilter(){ renderHeatmapWindow(); }
@@ -607,22 +613,29 @@
     var quotesHtml = (it.qs||[]).map(function(q){
       var tsChip = '';
       if (q.ts !== null && q.ts !== undefined){
-        var tsUrl = video.url + '&t=' + Math.floor(q.ts) + 's';
+        var tsUrl = safeHref(video.url) + '&t=' + Math.floor(q.ts) + 's';
         tsChip = '<a class="ts-link" href="' + esc(tsUrl) + '" target="_blank" rel="noopener" data-vid="' + esc(video.id) + '" data-start="' + Math.floor(q.ts) + '">▶ ' + fmtTime(q.ts) + '</a>';
       }
       return '<div class="quote"><div>' + tsChip + esc(q.t) + '</div>' +
-        '<div class="qmeta">' + esc(q.s||'') + (q.sum ? ' — ' + esc(q.sum) : '') + '</div></div>';
+        '<div class="qmeta">' + esc(q.s||'') + (q.su ? ' — ' + esc(q.su) : '') + '</div></div>';
     }).join('');
 
     var tagsHtml = (it.e||[]).map(function(e){ return '<span class="tag" data-tagname="' + esc(e.name) + '">#' + esc(e.name) + '</span>'; }).join('');
 
     var vmTitle = '';
-    var origMatch = it.w.match(/\(([^)]+)\)/) || it.w.match(/（([^）]+)）/);
-    var importTitle = origMatch ? origMatch[1] : it.w;
+    // 括弧が複数ある作品名(例:「A (説明) / B (Original Title)」)では、最初の括弧が
+    // 原題ではなく日本語の説明であることがあるため、英字を含む括弧を優先して探す
+    // (無ければ最後の括弧、それも無ければ作品名全体、の順でフォールバック。2026-09-21修正)。
+    var allParens = (it.w.match(/[（(]([^）)]+)[）)]/g) || []).map(function(s){
+      return s.slice(1, -1);
+    });
+    var withLatin = allParens.filter(function(s){ return /[A-Za-z]/.test(s); });
+    var importTitle = withLatin.length ? withLatin[withLatin.length - 1] :
+      (allParens.length ? allParens[allParens.length - 1] : it.w);
     var importUrl = 'https://www.google.com/search?q=' + encodeURIComponent(importTitle + ' import');
 
     return '<div class="card" style="--card-c: var(' + cvar + ')" data-search="' +
-        esc((it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(q){return q.t+' '+(q.sum||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase()) +
+        esc((it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(q){return q.t+' '+(q.su||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase()) +
         '" data-type="' + esc(it.t) + '">' +
       '<div class="card-head"><span class="card-work">' + esc(it.w) + '</span>' +
       '<span class="card-badge">' + esc(TYPE_LABELS[it.t] || it.t) + '</span></div>' +
@@ -737,6 +750,9 @@
       v.items.forEach(function(it, ii){
         var speakers = parseKnownHosts(it.s);
         if (!speakers || speakers.indexOf(host) === -1) return;
+        // タイプチップ(映画/アニメ等)が絞り込み中なら、ここでも合わせる
+        // (ヒートマップ側は元々activeTypesを見ているため、揃えないとカード一覧とヒートマップが食い違う)
+        if (activeTypes.size > 0 && !activeTypes.has(it.t)) return;
         var names = (it.e && it.e.length) ? it.e.map(function(e){ return e.name; }) : [it.w];
         if (names.indexOf(name) === -1) return;
         matches.push([it, v, v.id + '::' + it.w]);
@@ -775,7 +791,7 @@
     thumbEl.style.display = v.thumb ? '' : 'none';
     document.getElementById('vh-date').textContent = v.date;
     document.getElementById('vh-title').textContent = v.title;
-    document.getElementById('vh-link').href = v.url;
+    document.getElementById('vh-link').href = safeHref(v.url);
     cardsEl.innerHTML = v.items.map(function(it, ii){ return cardHtml(it, v, v.id + '::' + it.w); }).join('');
     renderVideoList();
     applyFilter();
@@ -840,7 +856,7 @@
       var matches = [];
       DATA.forEach(function(v, vi){
         v.items.forEach(function(it, ii){
-          var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.sum||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase();
+          var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.su||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase();
           if (hay.indexOf(q) !== -1) matches.push([it, v, v.id + '::' + it.w]);
         });
       });
