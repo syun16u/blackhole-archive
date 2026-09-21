@@ -469,7 +469,8 @@
       if (checked) cell.classList.add('checked');
       else cell.style.animationDelay = ((i % 27) / 27 * 2.6).toFixed(2) + 's';
       if (fs.filtering){
-        var hit = (activeTypes.size === 0 || activeTypes.has(entry.it.t)) && itemMatchesQuery(entry.it, fs.q);
+        var hit = (activeTypes.size === 0 || activeTypes.has(entry.it.t)) &&
+          (activeHostFilter ? itemMatchesHostFilter(entry.it) : itemMatchesQuery(entry.it, fs.q));
         cell.classList.toggle('filter-hit', hit);
         cell.classList.toggle('filter-dim', !hit);
       }
@@ -524,6 +525,14 @@
     if (!q) return true;
     var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.su||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase();
     return hay.indexOf(q) !== -1;
+  }
+  // showEntityForHost()のカード一覧側と全く同じ厳密条件(話者確定 かつ entities完全一致)。
+  function itemMatchesHostFilter(it){
+    var hf = activeHostFilter;
+    var speakers = parseKnownHosts(it.s);
+    if (!speakers || speakers.indexOf(hf.host) === -1) return false;
+    var names = (it.e && it.e.length) ? it.e.map(function(e){ return e.name; }) : [it.w];
+    return names.indexOf(hf.name) !== -1;
   }
   function updateHeatmapFilter(){ renderHeatmapWindow(); }
 
@@ -806,6 +815,7 @@
   function showEntityForHost(host, name){
     showRanking(false);
     lastSearchMode = true;
+    activeHostFilter = { host: host, name: name };
     searchInput.value = name;
     headerEl.style.display = 'none';
     var matches = [];
@@ -846,6 +856,12 @@
   function selectVideo(vi){
     if (showingRanking) showRanking(false);
     currentVideoIdx = vi;
+    // ここで検索状態を明示的に閉じておかないと、下のapplyFilter()が
+    // 「検索モードから抜けて元の動画に戻る」分岐(lastSearchMode)に入って
+    // selectVideo自身を再帰呼び出しし、戻ってきた後にwireCardEvents()が
+    // 二重に走ってボタン等のクリックリスナーが二重登録される
+    // (「チェック済み」ボタンが1クリックで無反応になるバグの原因。2026-09-21修正)。
+    lastSearchMode = false;
     var v = DATA[vi];
     document.getElementById('search').value = '';
     headerEl.style.display = '';
@@ -899,6 +915,11 @@
   // ---------------- search (グローバル: 全動画横断) ----------------
   var searchInput = document.getElementById('search');
   var lastSearchMode = false;
+  // showEntityForHost()のドリルダウン中だけセットする{host, name}。ランキングから
+  // 特定の話者×固有名詞で絞り込んだ際、カード一覧は厳密一致なのにヒートマップ側だけ
+  // 通常のあいまい全文検索(itemMatchesQuery)で光ってしまい件数が大きく食い違う
+  // 不具合があったため、ドリルダウン中はヒートマップも同じ厳密条件で判定する(2026-09-21修正)。
+  var activeHostFilter = null;
 
   function renderMatchList(matches, queryLabel){
     cardsEl.innerHTML = matches.length
@@ -908,6 +929,10 @@
   }
 
   function applyFilter(){
+    // ユーザーが検索欄やタイプチップを直接操作した時点で、ランキングドリルダウンの
+    // 厳密フィルタ状態は終了とみなす(showEntityForHost()はapplyFilter()を経由しないため、
+    // ここでクリアしてもドリルダウン自体には影響しない)。
+    activeHostFilter = null;
     var q = searchInput.value.trim().toLowerCase();
     updateHeatmapFilter();
 
