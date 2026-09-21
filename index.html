@@ -313,6 +313,30 @@
   var TYPE_LABELS = { movie:'映画', anime:'アニメ', drama:'ドラマ', book:'本', game:'ゲーム', music:'音楽', magazine:'雑誌', toy:'玩具', tv:'TV番組', manga:'漫画', documentary:'ドキュメンタリー', series:'シリーズ', other:'その他' };
   var TYPE_VAR = { movie:'--red', drama:'--red', anime:'--c-anime', book:'--c-book', game:'--c-game', music:'--c-music', magazine:'--c-magazine', toy:'--c-toy', tv:'--c-neutral', manga:'--c-book', documentary:'--c-neutral', series:'--c-neutral', other:'--c-neutral' };
 
+  // entities抽出時に固有名詞ではない一般名詞・抽象語が紛れ込んでいたもの(2026-09-22、
+  // ユーザーと目視で選別・確定)。タグ表示・Wikipediaリンク・話者別ランキング集計から除外する。
+  // 「覚えていない時もある」は固有名詞/一般名詞の話ではなく、文の断片がそのままentity化して
+  // しまった抽出エラー。ストップモーションは固有名詞として扱う判断のためリストから除外済み。
+  var GENERIC_ENTITY_NAMES = new Set([
+    '映画','監督','視聴者','シーン','本当','作品','エピソード','怪物','原作','本作',
+    '話題','企画','シリーズ','脚本','評価','経緯','実際','自分','音楽','逸話',
+    '先住民','作目','主人公','当時','テーマ','続編','人間','博士','演出','ラスト',
+    '年代','自身','体験談','題材','冒頭','何度','最後','名前','舞台','主演',
+    '人気','怪物役','質問','映画化','映像','普通','場面','配信','描写','関係',
+    '動物','リスナー','最新作','設定','事件','小説','紹介','考察','非常','指摘',
+    'イメージ','出演','歴史','コーナー','権利','モチーフ','今作','体験','影響','予算',
+    '結末','ホスト','造形','花嫁','反発','世界観','大学','実在','実話',
+    '許可','三部作','発言','ファン','劇中','映画音楽','食人映画史','複数','後半','人肉食',
+    '爆笑','倫理観','独特','ハードコア','一人','白人','現代','比較対象','感想','過去作',
+    'キャラクター','基本的','存在感','仕事','内容','映画談義','人組','可能性','一度','コンビ',
+    '資金','年頃','最終的','最近','バンド','番組冒頭','購入','セット','コミック','記憶',
+    '演技','ヒット','シーズン','全盛期','アニメーション','一貫性','セリフ','全部','部分','トレーディングカード',
+    '最初','評判','一緒','理由','恐竜','再評価','ライブ','観客','子供','スタッフ',
+    '悪役','人物','投稿','地獄','数週間後','ルート','本人','訃報後','視聴者投稿','一部',
+    '雑談','死体','モンスター','制作',
+    '覚えていない時もある'
+  ]);
+
   function esc(s){
     return String(s==null?'':s).replace(/[&<>"']/g, function(c){
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
@@ -630,7 +654,7 @@
     var matches = [];
     entities.forEach(function(e){
       var m = e.mention;
-      if (!m) return;
+      if (!m || GENERIC_ENTITY_NAMES.has(e.name)) return;
       var idx = text.indexOf(m);
       if (idx !== -1) matches.push({ start: idx, end: idx + m.length, mention: m, name: e.name || m });
     });
@@ -675,7 +699,7 @@
     // 素通しで.map()するとタグチップが重複表示される。名前で重複除去する(2026-09-21修正)。
     var seenTagName = {};
     var tagsHtml = (it.e||[]).filter(function(e){
-      if (!e.name || seenTagName[e.name]) return false;
+      if (!e.name || seenTagName[e.name] || GENERIC_ENTITY_NAMES.has(e.name)) return false;
       seenTagName[e.name] = true;
       return true;
     }).map(function(e){ return '<span class="tag" data-tagname="' + esc(e.name) + '">#' + esc(e.name) + '</span>'; }).join('');
@@ -769,7 +793,7 @@
         var seenName = {};
         var uniqueNames = [];
         names.forEach(function(name){
-          if (!name || seenName[name]) return;
+          if (!name || seenName[name] || GENERIC_ENTITY_NAMES.has(name)) return;
           seenName[name] = true;
           uniqueNames.push(name);
         });
