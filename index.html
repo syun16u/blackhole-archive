@@ -600,6 +600,10 @@
     }).join('');
     yearJumpEl.querySelectorAll('.chip').forEach(function(btn){
       btn.addEventListener('click', function(){
+        // クリックした年ボタンだけ選択状態(赤)にする(2026-09-22修正、以前はactiveクラスを
+        // 一度も付けておらずクリックしても見た目が変わらなかった)。
+        yearJumpEl.querySelectorAll('.chip.active').forEach(function(c){ c.classList.remove('active'); });
+        btn.classList.add('active');
         var target = videoListEl.querySelector('li.year-head[data-year="' + btn.dataset.year + '"]');
         // year-headはposition:stickyのため、scrollIntoView()・offsetTop・
         // getBoundingClientRectのいずれも実機で信頼できないことを確認済み
