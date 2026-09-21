@@ -415,9 +415,19 @@
   var heatmapScrollEl = document.getElementById('heatmap-scroll');
   var heatmapSpacerEl = document.getElementById('heatmap-spacer');
   var heatmapEl = document.getElementById('heatmap');
+  // 同一動画内に同じ作品名(it.w)が複数回出てくる場合、単純な"動画ID::作品名"キーだと
+  // ヒートマップ/チェック済み状態が衝突する。1件目は従来どおりのキー(localStorage互換のため
+  // 変更しない)、2件目以降だけ連番を付けて区別する(2026-09-21修正)。
+  function itemKey(v, it, ii){
+    var key = v.id + '::' + it.w;
+    var dupIndex = 0;
+    for (var i = 0; i < ii; i++){ if (v.items[i].w === it.w) dupIndex++; }
+    return dupIndex > 0 ? key + '::' + (dupIndex + 1) : key;
+  }
+
   var allItems = [];
   DATA.forEach(function(v, vi){
-    v.items.forEach(function(it, ii){ allItems.push({ vi: vi, ii: ii, it: it, key: v.id + '::' + it.w }); });
+    v.items.forEach(function(it, ii){ allItems.push({ vi: vi, ii: ii, it: it, key: itemKey(v, it, ii) }); });
   });
 
   var CHECKED_STORAGE_KEY = 'blackhole_checked_items_v1';
@@ -483,6 +493,7 @@
   heatmapEl.addEventListener('click', function(e){
     var cell = e.target.closest('.hm-cell');
     if (!cell || !cell.dataset.vi) return;
+    clearTypeFilters();
     selectVideo(parseInt(cell.dataset.vi, 10));
   });
 
@@ -519,6 +530,14 @@
   // ---------------- type chips ----------------
   var activeTypes = new Set();
   var chipsEl = document.getElementById('type-chips');
+  // タイプチップを有効にしたまま個別の動画を選択すると、選択直後のapplyFilter()が
+  // 「タイプ絞り込みの全動画横断一覧」でカードを上書きしてしまい、選んだ動画が見えなくなる
+  // (2026-09-21修正)。動画を明示的に選ぶ操作(サイドバー/ヒートマップ/TOP)の前に必ず呼ぶ。
+  function clearTypeFilters(){
+    if (activeTypes.size === 0) return;
+    activeTypes.clear();
+    chipsEl.querySelectorAll('.chip.active').forEach(function(c){ c.classList.remove('active'); });
+  }
   var typesPresent = {};
   DATA.forEach(function(v){ v.items.forEach(function(it){ typesPresent[it.t] = (typesPresent[it.t]||0) + 1; }); });
   Object.keys(TYPE_LABELS).forEach(function(t){
@@ -560,7 +579,7 @@
       li.dataset.search = (v.title + ' ' + v.date).toLowerCase();
       if (vi === currentVideoIdx) li.classList.add('active');
       li.innerHTML = '<span class="vn">' + v.items.length + '件</span><span class="vd">' + esc(v.date) + '</span>' + esc(v.title);
-      li.addEventListener('click', function(){ selectVideo(vi); });
+      li.addEventListener('click', function(){ clearTypeFilters(); selectVideo(vi); });
       videoListEl.appendChild(li);
     });
   }
@@ -633,15 +652,38 @@
         '<div class="qmeta">' + esc(q.s||'') + (q.su ? ' — ' + esc(q.su) : '') + '</div></div>';
     }).join('');
 
-    var tagsHtml = (it.e||[]).map(function(e){ return '<span class="tag" data-tagname="' + esc(e.name) + '">#' + esc(e.name) + '</span>'; }).join('');
+    // 同じ作品に表記ゆれ違いのmentionを持つ同名entityが複数登録されている場合があり、
+    // 素通しで.map()するとタグチップが重複表示される。名前で重複除去する(2026-09-21修正)。
+    var seenTagName = {};
+    var tagsHtml = (it.e||[]).filter(function(e){
+      if (!e.name || seenTagName[e.name]) return false;
+      seenTagName[e.name] = true;
+      return true;
+    }).map(function(e){ return '<span class="tag" data-tagname="' + esc(e.name) + '">#' + esc(e.name) + '</span>'; }).join('');
 
     var vmTitle = '';
     // 括弧が複数ある作品名(例:「A (説明) / B (Original Title)」)では、最初の括弧が
     // 原題ではなく日本語の説明であることがあるため、英字を含む括弧を優先して探す
     // (無ければ最後の括弧、それも無ければ作品名全体、の順でフォールバック。2026-09-21修正)。
-    var allParens = (it.w.match(/[（(]([^）)]+)[）)]/g) || []).map(function(s){
-      return s.slice(1, -1);
-    });
+    // 「(500)日のサマー ((500) Days of Summer)」のように括弧が入れ子になるケースがあり、
+    // 非入れ子対応の正規表現(旧実装)だと括弧の対応がずれて文字化けした抽出結果になっていた。
+    // 深さを数えて最も外側の括弧の中身だけを取り出す(入れ子は中身ごと1グループとして扱う)。
+    var allParens = [];
+    (function(){
+      var depth = 0, start = -1;
+      for (var i = 0; i < it.w.length; i++){
+        var ch = it.w[i];
+        if (ch === '（' || ch === '('){
+          if (depth === 0) start = i + 1;
+          depth++;
+        } else if (ch === '）' || ch === ')'){
+          if (depth > 0){
+            depth--;
+            if (depth === 0 && start !== -1){ allParens.push(it.w.slice(start, i)); start = -1; }
+          }
+        }
+      }
+    })();
     var withLatin = allParens.filter(function(s){ return /[A-Za-z]/.test(s); });
     var importTitle = withLatin.length ? withLatin[withLatin.length - 1] :
       (allParens.length ? allParens[allParens.length - 1] : it.w);
@@ -776,7 +818,7 @@
         if (activeTypes.size > 0 && !activeTypes.has(it.t)) return;
         var names = (it.e && it.e.length) ? it.e.map(function(e){ return e.name; }) : [it.w];
         if (names.indexOf(name) === -1) return;
-        matches.push([it, v, v.id + '::' + it.w]);
+        matches.push([it, v, itemKey(v, it, ii)]);
       });
     });
     renderMatchList(matches, name);
@@ -808,12 +850,12 @@
     document.getElementById('search').value = '';
     headerEl.style.display = '';
     var thumbEl = document.getElementById('vh-thumb');
-    thumbEl.src = v.thumb || '';
+    thumbEl.src = safeHref(v.thumb);
     thumbEl.style.display = v.thumb ? '' : 'none';
     document.getElementById('vh-date').textContent = v.date;
     document.getElementById('vh-title').textContent = v.title;
     document.getElementById('vh-link').href = safeHref(v.url);
-    cardsEl.innerHTML = v.items.map(function(it, ii){ return cardHtml(it, v, v.id + '::' + it.w); }).join('');
+    cardsEl.innerHTML = v.items.map(function(it, ii){ return cardHtml(it, v, itemKey(v, it, ii)); }).join('');
     renderVideoList();
     applyFilter();
     document.getElementById('main').scrollTop = 0;
@@ -878,7 +920,7 @@
       DATA.forEach(function(v, vi){
         v.items.forEach(function(it, ii){
           var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.su||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase();
-          if (hay.indexOf(q) !== -1) matches.push([it, v, v.id + '::' + it.w]);
+          if (hay.indexOf(q) !== -1) matches.push([it, v, itemKey(v, it, ii)]);
         });
       });
       matches = matches.filter(function(pair){ return activeTypes.size === 0 || activeTypes.has(pair[0].t); });
@@ -898,7 +940,7 @@
       var typeMatches = [];
       DATA.forEach(function(v, vi){
         v.items.forEach(function(it, ii){
-          if (activeTypes.has(it.t)) typeMatches.push([it, v, v.id + '::' + it.w]);
+          if (activeTypes.has(it.t)) typeMatches.push([it, v, itemKey(v, it, ii)]);
         });
       });
       var typeLabel = Array.from(activeTypes).map(function(t){ return TYPE_LABELS[t] || t; }).join('/');
@@ -929,9 +971,8 @@
     if (showingRanking) showRanking(false);
     searchInput.value = '';
     lastSearchMode = false;
-    activeTypes.clear();
-    chipsEl.querySelectorAll('.chip.active').forEach(function(c){ c.classList.remove('active'); });
-    if (DATA.length) selectVideo(DATA.length - 1);
+    clearTypeFilters();
+    if (videoOrder.length) selectVideo(videoOrder[0]);
     document.getElementById('sidebar').scrollTop = 0;
   });
 
@@ -939,7 +980,8 @@
   renderVideoList();
   renderYearJump();
   renderHeatmap();
-  if (DATA.length) selectVideo(DATA.length - 1);
+  // videoOrder[0]は日付降順ソート済みの先頭=最新動画(DATA配列自体の並び順には依存しない。2026-09-21修正)
+  if (videoOrder.length) selectVideo(videoOrder[0]);
 })();
 </script>
 
