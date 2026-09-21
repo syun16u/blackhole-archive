@@ -651,6 +651,12 @@
 
   function cardHtml(it, video, key){
     var cvar = TYPE_VAR[it.t] || '--c-neutral';
+    // --badge-ink はCSS側で宣言されているが値を設定する場所が無く、常にデフォルトの
+    // 白文字(#fff)になっていた。--red(movie/drama)は暗い赤地なので白文字でコントラスト
+    // 十分(4.66:1)だが、他の淡い色(アニメ/本/ゲーム/音楽/雑誌/おもちゃ/その他等、
+    // 7,893件中1,279件が該当)は白文字だとWCAG基準(4.5:1)を大きく下回り読みにくい。
+    // 暗い文字色(既存の--red-ink/--yellow-inkと同じ#0a0908)に切り替える(2026-09-22修正)。
+    var badgeInk = (cvar === '--red') ? '#fff' : '#0a0908';
     var quotesHtml = (it.qs||[]).map(function(q){
       var tsChip = '';
       if (q.ts !== null && q.ts !== undefined){
@@ -698,7 +704,7 @@
       (allParens.length ? allParens[allParens.length - 1] : it.w);
     var importUrl = 'https://www.google.com/search?q=' + encodeURIComponent(importTitle + ' import');
 
-    return '<div class="card" style="--card-c: var(' + cvar + ')" data-search="' +
+    return '<div class="card" style="--card-c: var(' + cvar + '); --badge-ink: ' + badgeInk + '" data-search="' +
         esc((it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(q){return q.t+' '+(q.su||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase()) +
         '" data-type="' + esc(it.t) + '">' +
       '<div class="card-head"><span class="card-work">' + esc(it.w) + '</span>' +
@@ -839,14 +845,32 @@
     });
   }
 
+  // ランキングパネルは検索語・タイプチップの影響を受けない全体集計。それを開いたまま
+  // サイドバーの絞り込み表示・ヒートマップのハイライトだけ古い検索結果のまま残っていると、
+  // パネルの件数(全体)と食い違って見える。開いた時点でフィルタが有効だった場合だけクリアし、
+  // 閉じるときは(何かクリアしていた場合のみ)selectVideo()で表示を作り直して整合させる
+  // (フィルタが無かった通常ケースでは従来通り高速なdisplay切り替えのみ、スクロール位置維持)。
+  // 2026-09-22修正。
+  var rankingClearedFilter = false;
   function showRanking(on){
     showingRanking = on;
     rankingBtn.classList.toggle('active', on);
     rankingPanel.classList.toggle('show', on);
     cardsEl.style.display = on ? 'none' : '';
     if (on){
+      rankingClearedFilter = !!(searchInput.value.trim() || activeTypes.size > 0);
+      if (rankingClearedFilter){
+        searchInput.value = '';
+        lastSearchMode = false;
+        clearTypeFilters();
+        videoListEl.querySelectorAll('li').forEach(function(li){ li.classList.remove('hidden-by-filter'); });
+        updateHeatmapFilter();
+      }
       headerEl.style.display = 'none';
       renderRankingPanel();
+    } else if (rankingClearedFilter && currentVideoIdx >= 0){
+      rankingClearedFilter = false;
+      selectVideo(currentVideoIdx);
     } else if (currentVideoIdx >= 0 && !lastSearchMode) {
       headerEl.style.display = '';
     }
