@@ -384,6 +384,68 @@
     '星族','数族','訂正的','芸大会',
   ]);
 
+  // 同一人物・同一作品が表記ゆれ(中黒/スペース/コロン等の有無、姓のみ表記)で
+  // 複数のentity名に分裂し、ランキング集計や検索がその分割数だけ割を食っていた問題への対応
+  // (2026-09-22、ユーザー指摘のスピルバーグ/スターウォーズ調査から発覚)。
+  // 記号違いは機械的に(正規化して衝突するもの同士を集計上最多表記へ統一)、姓のみ→フルネームは
+  // 全件の出現文脈(work/context)を個別に確認し、同姓の別人・作品タイトルやキャラ名との
+  // 偶然の文字列衝突がないと確認できたものだけを採用している(クローネンバーグ家3人・コッポラ家5人等、
+  // 実際に同姓の別人が複数実在するケースは統合対象から除外。カーン=Marvel「Kang」、
+  // ハン=ワイルド・スピードのキャラ、ホリー=『地獄の逃避行』の登場人物、
+  // ネロ=ローマ皇帝の時代、ショア=映画『ショア』そのもの、等、姓が一致するだけで
+  // 実際は無関係な固有名詞だったケースが多数見つかったため、機械的な姓マッチだけでは統合していない)。
+  var ENTITY_NAME_ALIASES = {
+    'レッド・ガーディアン':'レッドガーディアン', 'フリーガイ (Free Guy)':'フリー・ガイ (Free Guy)', 'ブルーベルベット (Blue Velvet)':'ブルー・ベルベット (Blue Velvet)',
+    'スキャナーズ(Scanners)':'スキャナーズ (Scanners)', 'ワイルドスピードSKY MISSION':'ワイルド・スピード SKY MISSION', 'スパイダーマン: ノー・ウェイ・ホーム':'スパイダーマン:ノー・ウェイ・ホーム',
+    'ウエストサイド・ストーリー':'ウエスト・サイド・ストーリー', 'ベストキッド':'ベスト・キッド', 'バットマン リターンズ':'バットマン・リターンズ',
+    'ティムバートン':'ティム・バートン', 'ドクター・ストレンジ/マルチバース・オブ・マッドネス':'ドクター・ストレンジ／マルチバース・オブ・マッドネス', 'ナイト・オブ・ザ・リビング・デッド':'ナイト・オブ・ザ・リビングデッド',
+    'ゾンビ (Dawn of the Dead, 1978)':'ゾンビ(Dawn of the Dead, 1978)', 'マッドマックス 怒りのデスロード':'マッドマックス 怒りのデス・ロード', 'NOPE/ノープ':'NOPE／ノープ',
+    'ブラッククランズマン':'ブラック・クランズマン', 'キングコング':'キング・コング', 'アリータ: バトル・エンジェル (Alita: Battle Angel)':'アリータ:バトル・エンジェル (Alita: Battle Angel)',
+    'ピノキオ(デル・トロ版)':'ピノキオ (デル・トロ版)', 'アントマン&ワスプ：クアントマニア':'アントマン&ワスプ:クアントマニア', 'マッド・マックス':'マッドマックス',
+    'トータルリコール':'トータル・リコール', 'ワイルドスピード':'ワイルド・スピード', 'ブレードランナー 2049':'ブレードランナー2049',
+    'スターウォーズ':'スター・ウォーズ', 'トランスフォーマー／ビースト覚醒':'トランスフォーマー/ビースト覚醒', 'ジャン=クロード・ヴァン・ダム':'ジャン=クロード・ヴァンダム',
+    'ワイルド・スピード ファイアーブースト':'ワイルドスピード ファイアーブースト', 'バットマン・フォーエヴァー':'バットマン フォーエヴァー', 'ジャスティスリーグ':'ジャスティス・リーグ',
+    'マダムウェブ':'マダム・ウェブ', 'カード・カウンター':'カードカウンター', 'ポールシュレーダー':'ポール・シュレーダー',
+    'ローリング・サンダー':'ローリングサンダー', 'エクソシスト・ザ・ビギニング':'エクソシスト ザ・ビギニング', 'ハリー・ポッター シリーズ':'ハリー・ポッターシリーズ',
+    'アフターアワーズ':'アフター・アワーズ', 'レディバード':'レディ・バード', 'スティーブンキング':'スティーブン・キング',
+    'トータル・リコール (Total Recall)':'トータル・リコール(Total Recall)', 'パールハーバー':'パール・ハーバー', 'アイスキューブ':'アイス・キューブ',
+    'フランクシーラン':'フランク・シーラン', 'デ・ニーロ':'デニーロ', 'ウルフオブウォールストリート':'ウルフ・オブ・ウォールストリート',
+    'ツインピークス':'ツイン・ピークス', 'ダイハード':'ダイ・ハード', 'ウンデッドニー':'ウンデッド・ニー',
+    'ペットセメタリー':'ペット・セメタリー', 'ピーターパーカー':'ピーター・パーカー', 'ジャン＝ピエール・メルヴィル':'ジャン=ピエール・メルヴィル',
+    'モナーク：レガシー・オブ・モンスターズ':'モナーク: レガシー・オブ・モンスターズ', 'エイリアン:コヴェナント':'エイリアン: コヴェナント', 'スパイダーマン: アクロス・ザ・スパイダーバース':'スパイダーマン：アクロス・ザ・スパイダーバース',
+    'レベルムーン':'レベル・ムーン', 'キムズビデオ':'キムズ・ビデオ', 'ビートルジュース ビートルジュース (Beetlejuice Beetlejuice)':'ビートルジュース ビートルジュース(Beetlejuice Beetlejuice)',
+    'リリー＝ローズ・デップ':'リリー=ローズ・デップ', 'スパイダーマン: ノー・ウェイ・ホーム (Spider-Man: No Way Home)':'スパイダーマン：ノー・ウェイ・ホーム (Spider-Man: No Way Home)', 'アフターアワーズ (After Hours)':'アフター・アワーズ (After Hours)',
+    'スター・ウォーズ/スカイウォーカーの夜明け':'スター・ウォーズ／スカイウォーカーの夜明け', 'リトルショップオブホラーズ (Little Shop of Horrors)':'リトル・ショップ・オブ・ホラーズ (Little Shop of Horrors)', 'マダム・ウェブ (Madame Web)':'マダムウェブ (Madame Web)',
+    'デッドプール&ウルヴァリン':'デッドプール & ウルヴァリン', 'ブルーベルベット':'ブルー・ベルベット', 'ジョンウィックシリーズ (John Wick)':'ジョン・ウィック シリーズ (John Wick)',
+    'ダークナイト・ライジング':'ダークナイト ライジング', 'ロバート・ダウニーJr.':'ロバート・ダウニー・Jr.', 'ミレニアム・ファルコン':'ミレニアムファルコン',
+    'ゾンビ(Dawn of the Dead)':'ゾンビ (Dawn of the Dead)', 'キングコング:髑髏島の巨神':'キングコング：髑髏島の巨神', 'キング・コング (1933)':'キングコング (1933)',
+    'MPC(プラモデルメーカー)':'MPC (プラモデルメーカー)', 'サークル・ジャークス':'サークルジャークス', 'アニャ・テイラー＝ジョイ':'アニャ・テイラー=ジョイ',
+    'クワイエット・プレイス:DAY1':'クワイエット・プレイス：DAY 1', 'スーパーマン・リターンズ':'スーパーマン リターンズ', 'アガサ・オールアロング':'アガサ・オール・アロング',
+    'エイリアン: ロムルス':'エイリアン:ロムルス', 'アーロン・テイラー＝ジョンソン':'アーロン・テイラー=ジョンソン', 'ジミー・ウォン・ユー':'ジミー・ウォンユー',
+    'ケイリー＝ヒロユキ・タガワ':'ケイリー=ヒロユキ・タガワ', 'JJ・エイブラムス':'J・J・エイブラムス', 'クローネンバーグ':'デヴィッド・クローネンバーグ',
+    'コッポラ':'フランシス・フォード・コッポラ', 'シュワルツェネッガー':'アーノルド・シュワルツェネッガー', 'トランプ':'ドナルド・トランプ',
+    'アリ':'ムハンマド・アリ', 'ロバートソン':'ロビー・ロバートソン', 'グレイザー':'ジョナサン・グレイザー',
+    'カーター':'ヘレナ・ボナム＝カーター', 'アシュトン':'ロイ・アシュトン', 'バートン':'ティム・バートン',
+    'スコセッシ':'マーティン・スコセッシ', 'スピルバーグ':'スティーヴン・スピルバーグ', 'リンチ':'デヴィッド・リンチ',
+    'ルーカス':'ジョージ・ルーカス', 'パチーノ':'アル・パチーノ', 'フィンチャー':'デヴィッド・フィンチャー',
+    'ディカプリオ':'レオナルド・ディカプリオ', 'イーストウッド':'クリント・イーストウッド', 'エガース':'ロバート・エガース',
+    'スタローン':'シルベスター・スタローン', 'ロメロ':'ジョージ・A・ロメロ', 'シュレーダー':'ポール・シュレーダー',
+    'ゴダール':'ジャン=リュック・ゴダール', 'ラウレンティス':'ディノ・デ・ラウレンティス', 'ジャームッシュ':'ジム・ジャームッシュ',
+    'ザッパ':'フランク・ザッパ', 'ファニング':'エル・ファニング', 'ヴィルヌーヴ':'ドゥニ・ヴィルヌーヴ',
+    'ファスビンダー':'ライナー・ヴェルナー・ファスビンダー', 'キューブリック':'スタンリー・キューブリック', 'ニーソン':'リアム・ニーソン',
+    'トラボルタ':'ジョン・トラボルタ', 'ルゴシ':'ベラ・ルゴシ', 'ヘルツォーク':'ヴェルナー・ヘルツォーク',
+    'アロノフスキー':'ダーレン・アロノフスキー', 'リオッタ':'レイ・リオッタ', 'ペキンパー':'サム・ペキンパー',
+    'アルモドバル':'ペドロ・アルモドバル', 'ファスベンダー':'マイケル・ファスベンダー', 'ヤコペッティ':'グアルティエロ・ヤコペッティ',
+    'プラウズ':'デビッド・プラウズ', 'クラム':'ロバート・クラム', 'チャップリン':'チャールズ・チャップリン',
+    'アシモフ':'アイザック・アシモフ', 'ラヴクラフト':'H・P・ラヴクラフト', 'ルーベンス':'ポール・ルーベンス',
+    'パターノ':'ジョー・パターノ', 'ベルトルッチ':'ベルナルド・ベルトルッチ', 'スティーブン・スピルバーグ':'スティーヴン・スピルバーグ',
+    'デビッド・リンチ':'デヴィッド・リンチ', 'シルヴェスター・スタローン':'シルベスター・スタローン', 'ドニ・ヴィルヌーヴ':'ドゥニ・ヴィルヌーヴ',
+    'リーアム・ニーソン':'リアム・ニーソン', 'デヴィッド・プラウズ':'デビッド・プラウズ', 'デビッド・クローネンバーグ':'デヴィッド・クローネンバーグ'
+  };
+  function canonicalEntityName(name){
+    return ENTITY_NAME_ALIASES[name] || name;
+  }
+
   function esc(s){
     return String(s==null?'':s).replace(/[&<>"']/g, function(c){
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
@@ -594,7 +656,7 @@
   // 検索/タイプフィルタと連動してヒートマップを光らせる(該当作品=光る、非該当=沈む)
   function itemMatchesQuery(it, q){
     if (!q) return true;
-    var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.su||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase();
+    var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.su||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention+' '+canonicalEntityName(ee.name);}).join(' ')).toLowerCase();
     return hay.indexOf(q) !== -1;
   }
   // showEntityForHost()のカード一覧側と全く同じ厳密条件(話者確定 かつ entities完全一致)。
@@ -602,7 +664,7 @@
     var hf = activeHostFilter;
     var speakers = parseKnownHosts(it.s);
     if (!speakers || speakers.indexOf(hf.host) === -1) return false;
-    var names = (it.e && it.e.length) ? it.e.map(function(e){ return e.name; }) : [it.w];
+    var names = (it.e && it.e.length) ? it.e.map(function(e){ return canonicalEntityName(e.name); }) : [it.w];
     return names.indexOf(hf.name) !== -1;
   }
   function updateHeatmapFilter(){ renderHeatmapWindow(); }
@@ -703,7 +765,7 @@
       var m = e.mention;
       if (!m || GENERIC_ENTITY_NAMES.has(e.name)) return;
       var idx = text.indexOf(m);
-      if (idx !== -1) matches.push({ start: idx, end: idx + m.length, mention: m, name: e.name || m });
+      if (idx !== -1) matches.push({ start: idx, end: idx + m.length, mention: m, name: canonicalEntityName(e.name) || m });
     });
     if (!matches.length) return esc(text);
     matches.sort(function(a, b){ return a.start - b.start || (b.end - b.start) - (a.end - a.start); });
@@ -743,10 +805,11 @@
     }).join('');
 
     // 同じ作品に表記ゆれ違いのmentionを持つ同名entityが複数登録されている場合があり、
-    // 素通しで.map()するとタグチップが重複表示される。名前で重複除去する(2026-09-21修正)。
+    // 素通しで.map()するとタグチップが重複表示される。正式名(表記ゆれ統合後)で重複除去する
+    // (2026-09-21修正、2026-09-22に表記ゆれ統合対応)。
     var seenTagName = {};
-    var tagsHtml = (it.e||[]).filter(function(e){
-      if (!e.name || seenTagName[e.name] || GENERIC_ENTITY_NAMES.has(e.name)) return false;
+    var tagsHtml = (it.e||[]).map(function(e){ return { name: canonicalEntityName(e.name), orig: e.name }; }).filter(function(e){
+      if (!e.name || seenTagName[e.name] || GENERIC_ENTITY_NAMES.has(e.orig) || GENERIC_ENTITY_NAMES.has(e.name)) return false;
       seenTagName[e.name] = true;
       return true;
     }).map(function(e){ return '<span class="tag" data-tagname="' + esc(e.name) + '">#' + esc(e.name) + '</span>'; }).join('');
@@ -780,7 +843,7 @@
     var importUrl = 'https://www.google.com/search?q=' + encodeURIComponent(importTitle + ' import');
 
     return '<div class="card" style="--card-c: var(' + cvar + '); --badge-ink: ' + badgeInk + '" data-search="' +
-        esc((it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(q){return q.t+' '+(q.su||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase()) +
+        esc((it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(q){return q.t+' '+(q.su||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention+' '+canonicalEntityName(ee.name);}).join(' ')).toLowerCase()) +
         '" data-type="' + esc(it.t) + '">' +
       '<div class="card-head"><span class="card-work">' + esc(it.w) + '</span>' +
       '<span class="card-badge">' + esc(TYPE_LABELS[it.t] || it.t) + '</span></div>' +
@@ -836,7 +899,7 @@
       v.items.forEach(function(it){
         var speakers = parseKnownHosts(it.s);
         if (!speakers) return;
-        var names = (it.e && it.e.length) ? it.e.map(function(e){ return e.name; }) : [it.w];
+        var names = (it.e && it.e.length) ? it.e.map(function(e){ return canonicalEntityName(e.name); }) : [it.w];
         var seenName = {};
         var uniqueNames = [];
         names.forEach(function(name){
@@ -915,7 +978,7 @@
         // タイプチップ(映画/アニメ等)が絞り込み中なら、ここでも合わせる
         // (ヒートマップ側は元々activeTypesを見ているため、揃えないとカード一覧とヒートマップが食い違う)
         if (activeTypes.size > 0 && !activeTypes.has(it.t)) return;
-        var names = (it.e && it.e.length) ? it.e.map(function(e){ return e.name; }) : [it.w];
+        var names = (it.e && it.e.length) ? it.e.map(function(e){ return canonicalEntityName(e.name); }) : [it.w];
         if (names.indexOf(name) === -1) return;
         matches.push([it, v, itemKey(v, it, ii)]);
       });
@@ -1058,7 +1121,7 @@
       var matches = [];
       DATA.forEach(function(v, vi){
         v.items.forEach(function(it, ii){
-          var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.su||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention;}).join(' ')).toLowerCase();
+          var hay = (it.w + ' ' + it.c + ' ' + it.s + ' ' + (it.qs||[]).map(function(qq){return qq.t+' '+(qq.su||'');}).join(' ') + ' ' + (it.e||[]).map(function(ee){return ee.name+' '+ee.mention+' '+canonicalEntityName(ee.name);}).join(' ')).toLowerCase();
           if (hay.indexOf(q) !== -1) matches.push([it, v, itemKey(v, it, ii)]);
         });
       });
